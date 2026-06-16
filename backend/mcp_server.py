@@ -10,4 +10,4 @@ def generate_email(email_history, context, tone="warm", technical=False):
         "subject": "Hello"
     }
 
-app = mcp.sse_app()
+app = mcp.sse_app(mount_path="/sse")
