@@ -1,9 +1,13 @@
 from mcp.server.fastmcp import FastMCP
-from starlette.middleware.trustedhost import TrustedHostMiddleware
 import uvicorn
 import os
 
-mcp = FastMCP("vibe")
+mcp = FastMCP(
+    "vibe",
+    host="0.0.0.0",
+    port=8080,
+    allowed_hosts=["*"]
+)
 
 @mcp.tool()
 def generate_email(email_history, context, tone="warm", technical=False):
@@ -13,13 +17,5 @@ def generate_email(email_history, context, tone="warm", technical=False):
         "subject": "Hello"
     }
 
-app = mcp.sse_app()
-
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=["*"]
-)
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    mcp.run(transport="sse")
