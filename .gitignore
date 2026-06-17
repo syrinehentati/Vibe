@@ -3,12 +3,15 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
-backend/.env
 
 # Node
 node_modules/
-build/
+frontend/build/
+
+# Environment variables — never commit these
+.env
 .env.local
+.env.production
 
 # VS Code
 .vscode/
