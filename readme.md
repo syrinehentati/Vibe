@@ -46,7 +46,7 @@ Claude Desktop / any MCP client
 ## Live deployment
 
 ```
-https://vibe-production-1126.up.railway.app/sse
+https://vibe-production-3686.up.railway.app/
 ```
 
 ---
