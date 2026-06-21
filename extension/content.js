@@ -23,47 +23,56 @@ function injectSidebar() {
 
   const sidebar = document.createElement("div");
   sidebar.id = "vibe-sidebar";
+  // Replace the sidebar.innerHTML inside injectSidebar() with this:
+
   sidebar.innerHTML = `
-    <div id="vibe-header">
-      <span id="vibe-wordmark">✉️ Vibe</span>
-      <button id="vibe-close">×</button>
+  <div id="vibe-header">
+    <span id="vibe-wordmark">Vibe</span>
+    <button id="vibe-close">×</button>
+  </div>
+  <div id="vibe-body">
+
+    <div id="vibe-empty" style="display:none">
+      <div id="vibe-empty-icon">✉️</div>
+      <p>Open an email to start generating replies with Vibe</p>
     </div>
-    <div id="vibe-body">
-      <div id="vibe-empty" style="display:none">
-        <p style="color:#666;font-size:13px;text-align:center;padding:20px 0">
-          Open an email to use Vibe
-        </p>
+
+    <div id="vibe-main">
+      <label class="vibe-label">Tone</label>
+      <select id="vibe-tone-select">
+        <option value="warm">🌿 Warm</option>
+        <option value="formal">🎩 Formal</option>
+        <option value="casual">😊 Casual</option>
+        <option value="direct">⚡ Direct</option>
+        <option value="friendly">✨ Friendly</option>
+      </select>
+
+      <div class="vibe-spacer"></div>
+
+      <label class="vibe-label">What do you want to say?</label>
+      <textarea id="vibe-context" rows="3" placeholder="e.g. Follow up on the proposal and ask about timeline..."></textarea>
+
+      <button id="vibe-generate">Generate Reply</button>
+
+      <div id="vibe-loading" style="display:none">
+        <p id="vibe-loading-text">Analysing tone...</p>
       </div>
-      <div id="vibe-main">
-        <label class="vibe-label">Tone</label>
-        <select id="vibe-tone-select">
-          <option value="warm">Warm</option>
-          <option value="formal">Formal</option>
-          <option value="casual">Casual</option>
-          <option value="direct">Direct</option>
-          <option value="friendly">Friendly</option>
-        </select>
-        <label class="vibe-label" style="margin-top:12px">What do you want to say?</label>
-        <textarea id="vibe-context" placeholder="Follow up on the proposal..."></textarea>
-        <button id="vibe-generate">Generate Reply</button>
-        <div id="vibe-loading" style="display:none">
-          <p style="color:#7c6fff;font-size:13px;text-align:center;padding:12px 0">
-            Analysing tone...
-          </p>
+
+      <div id="vibe-result" style="display:none">
+        <div id="vibe-detected-tone"></div>
+        <div id="vibe-subject-line"></div>
+        <div id="vibe-email-text"></div>
+        <div class="vibe-actions">
+          <button class="vibe-action-btn" id="vibe-copy">Copy</button>
+          <button class="vibe-action-btn primary" id="vibe-insert">Insert into Gmail</button>
         </div>
-        <div id="vibe-result" style="display:none">
-          <div id="vibe-detected-tone"></div>
-          <div id="vibe-subject-line"></div>
-          <div id="vibe-email-text"></div>
-          <div style="display:flex;gap:8px;margin-top:10px">
-            <button id="vibe-copy">Copy</button>
-            <button id="vibe-insert">Insert</button>
-          </div>
-        </div>
-        <div id="vibe-error" style="display:none"></div>
       </div>
+
+      <div id="vibe-error" style="display:none"></div>
     </div>
-  `;
+
+  </div>
+`;
 
   document.body.appendChild(sidebar);
 
@@ -160,20 +169,31 @@ function injectReopenButton() {
 }
 
 function checkEmailState() {
-  setTimeout(() => {
-    const emailHistory = getEmailThread()
-    const empty = document.getElementById('vibe-empty')
-    const main = document.getElementById('vibe-main')
-    if (!empty || !main) return
-    
-    if (emailHistory.length === 0) {
-      empty.style.display = 'block'
-      main.style.display = 'none'
-    } else {
-      empty.style.display = 'none'
-      main.style.display = 'block'
-    }
-  }, 1500) 
+  const empty = document.getElementById("vibe-empty");
+  const main = document.getElementById("vibe-main");
+  if (!empty || !main) return;
+
+  // If we're on an email URL, keep trying until Gmail renders it
+  if (isEmailOpen()) {
+    let attempts = 0;
+    const interval = setInterval(() => {
+      attempts++;
+      const emailHistory = getEmailThread();
+
+      if (emailHistory.length > 0) {
+        // Gmail finally rendered the email
+        empty.style.display = "none";
+        main.style.display = "block";
+        clearInterval(interval);
+      } else if (attempts > 20) {
+        // 10 seconds passed, give up
+        clearInterval(interval);
+      }
+    }, 500);
+  } else {
+    empty.style.display = "block";
+    main.style.display = "none";
+  }
 }
 function setLoading(isLoading) {
   document.getElementById("vibe-loading").style.display = isLoading
