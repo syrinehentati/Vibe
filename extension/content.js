@@ -166,7 +166,7 @@ function injectSidebar() {
           email_history: emailHistory,
           context,
           tone,
-          sender_email: senderEmail, // ← pass sender to background
+          sender_email: senderEmail,
         },
       },
       (response) => {
@@ -174,7 +174,7 @@ function injectSidebar() {
         if (!response || response.error) {
           showError(response?.error || "Something went wrong.");
         } else {
-          showResult(response.data, emailHistory.length);
+          showResult(response.data, response.emailCount); // ← use the real count, not the local one
         }
       },
     );
