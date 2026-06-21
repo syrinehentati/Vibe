@@ -10,13 +10,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       body: JSON.stringify({
         email_history: message.payload.email_history,
         context: message.payload.context,
-        config: { tone: "warm", technical: false },
+        config: { tone: message.payload.tone, technical: false },
       }),
     })
       .then((res) => res.json())
       .then((data) => sendResponse({ data }))
       .catch((err) => sendResponse({ error: err.message }));
-
     return true;
   }
 });
