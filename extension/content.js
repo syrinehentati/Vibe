@@ -4,23 +4,75 @@
 
 function getEmailThread() {
   const emails = [];
+
+  // Try to expand collapsed messages
+  document
+    .querySelectorAll('[aria-label="Show trimmed content"]')
+    .forEach((btn) => btn.click());
+
+  document
+    .querySelectorAll('[data-tooltip="Expand all"]')
+    .forEach((btn) => btn.click());
+
+  // Read ALL data-message-id blocks
   const emailBlocks = document.querySelectorAll("[data-message-id]");
+
   emailBlocks.forEach((block) => {
-    const body =
-      block.querySelector(".a3s") ||
-      block.querySelector(".gmail_quote") ||
-      block.querySelector('[dir="ltr"]');
-    if (body) emails.push(body.innerText.trim());
+    // Try multiple selectors
+    const selectors = [".a3s", ".ii.gt", ".Am", '[dir="ltr"]'];
+    for (const sel of selectors) {
+      const body = block.querySelector(sel);
+      if (body && body.innerText.trim().length > 10) {
+        emails.push(body.innerText.trim());
+        break;
+      }
+    }
   });
+
   return emails;
+}
+
+function renderEmailList(emails) {
+  const container = document.getElementById("vibe-email-list");
+  if (!container) return;
+
+  if (emails.length === 0) {
+    container.innerHTML = `<p style="color:#bbb;font-size:12px">No emails found in thread.</p>`;
+    return;
+  }
+
+  container.innerHTML = emails
+    .map(
+      (email, i) => `
+    <div class="vibe-email-item">
+      <label class="vibe-email-label">
+        <input 
+          type="checkbox" 
+          class="vibe-email-checkbox" 
+          data-index="${i}" 
+          checked
+        />
+        <span class="vibe-email-preview">
+          ${email.slice(0, 60).trim()}${email.length > 60 ? "..." : ""}
+        </span>
+      </label>
+    </div>
+  `,
+    )
+    .join("");
 }
 
 function injectSidebar() {
   if (document.getElementById("vibe-sidebar")) {
     document.getElementById("vibe-sidebar").style.display = "block";
+    // Reset result and recheck emails for new thread
+    document.getElementById("vibe-result").style.display = "none";
+    document.getElementById("vibe-error").style.display = "none";
+    document.getElementById("vibe-email-list").innerHTML = "";
+    document.getElementById("vibe-context").value = "";
+    checkEmailState(); // ← recheck for new email
     return;
   }
-
   const sidebar = document.createElement("div");
   sidebar.id = "vibe-sidebar";
   // Replace the sidebar.innerHTML inside injectSidebar() with this:
@@ -38,6 +90,12 @@ function injectSidebar() {
     </div>
 
     <div id="vibe-main">
+
+      <label class="vibe-label">Emails found in thread</label>
+      <div id="vibe-email-list"></div>
+
+      <div class="vibe-spacer"></div>
+
       <label class="vibe-label">Tone</label>
       <select id="vibe-tone-select">
         <option value="warm">🌿 Warm</option>
@@ -50,7 +108,8 @@ function injectSidebar() {
       <div class="vibe-spacer"></div>
 
       <label class="vibe-label">What do you want to say?</label>
-      <textarea id="vibe-context" rows="3" placeholder="e.g. Follow up on the proposal and ask about timeline..."></textarea>
+      <textarea id="vibe-context" rows="3" 
+        placeholder="e.g. Follow up on the proposal..."></textarea>
 
       <button id="vibe-generate">Generate Reply</button>
 
@@ -61,6 +120,7 @@ function injectSidebar() {
       <div id="vibe-result" style="display:none">
         <div id="vibe-detected-tone"></div>
         <div id="vibe-subject-line"></div>
+        <div id="vibe-used-emails"></div>
         <div id="vibe-email-text"></div>
         <div class="vibe-actions">
           <button class="vibe-action-btn" id="vibe-copy">Copy</button>
@@ -89,9 +149,18 @@ function injectSidebar() {
     const tone = document.getElementById("vibe-tone-select").value;
     if (!context) return;
 
-    const emailHistory = getEmailThread();
-    if (emailHistory.length === 0) {
-      showError("No emails found in this thread.");
+    // Get only checked emails
+    const allEmails = getEmailThread();
+    const checkboxes = document.querySelectorAll(".vibe-email-checkbox");
+    const selectedEmails = [];
+    checkboxes.forEach((cb, i) => {
+      if (cb.checked && allEmails[i]) {
+        selectedEmails.push(allEmails[i]);
+      }
+    });
+
+    if (selectedEmails.length === 0) {
+      showError("Please select at least one email.");
       return;
     }
 
@@ -100,14 +169,19 @@ function injectSidebar() {
     chrome.runtime.sendMessage(
       {
         type: "GENERATE_EMAIL",
-        payload: { email_history: emailHistory, context, tone },
+        payload: {
+          email_history: selectedEmails,
+          context,
+          tone,
+          total_selected: selectedEmails.length,
+        },
       },
       (response) => {
         setLoading(false);
         if (!response || response.error) {
           showError(response?.error || "Something went wrong.");
         } else {
-          showResult(response.data);
+          showResult(response.data, selectedEmails.length);
         }
       },
     );
@@ -167,34 +241,29 @@ function injectReopenButton() {
   };
   document.body.appendChild(btn);
 }
-
 function checkEmailState() {
-  const empty = document.getElementById("vibe-empty");
-  const main = document.getElementById("vibe-main");
-  if (!empty || !main) return;
+  let attempts = 0;
+  const interval = setInterval(() => {
+    attempts++;
+    const emailHistory = getEmailThread();
+    const empty = document.getElementById("vibe-empty");
+    const main = document.getElementById("vibe-main");
+    if (!empty || !main) {
+      clearInterval(interval);
+      return;
+    }
 
-  // If we're on an email URL, keep trying until Gmail renders it
-  if (isEmailOpen()) {
-    let attempts = 0;
-    const interval = setInterval(() => {
-      attempts++;
-      const emailHistory = getEmailThread();
-
-      if (emailHistory.length > 0) {
-        // Gmail finally rendered the email
-        empty.style.display = "none";
-        main.style.display = "block";
-        clearInterval(interval);
-      } else if (attempts > 20) {
-        // 10 seconds passed, give up
-        clearInterval(interval);
-      }
-    }, 500);
-  } else {
-    empty.style.display = "block";
-    main.style.display = "none";
-  }
+    if (emailHistory.length > 0) {
+      empty.style.display = "none";
+      main.style.display = "block";
+      renderEmailList(emailHistory);
+      clearInterval(interval);
+    } else if (attempts > 20) {
+      clearInterval(interval);
+    }
+  }, 800); // ← increased to 800ms
 }
+
 function setLoading(isLoading) {
   document.getElementById("vibe-loading").style.display = isLoading
     ? "block"
@@ -204,13 +273,15 @@ function setLoading(isLoading) {
     : "block";
 }
 
-function showResult(data) {
+function showResult(data, emailCount) {
   document.getElementById("vibe-result").style.display = "block";
   document.getElementById("vibe-error").style.display = "none";
   document.getElementById("vibe-detected-tone").textContent =
     `Detected tone: ${data.detected_tone}`;
   document.getElementById("vibe-subject-line").textContent =
     `Subject: ${data.subject}`;
+  document.getElementById("vibe-used-emails").textContent =
+    `Based on ${emailCount} email${emailCount > 1 ? "s" : ""}`;
   document.getElementById("vibe-email-text").textContent = data.email;
 }
 
