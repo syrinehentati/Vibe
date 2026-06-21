@@ -160,18 +160,21 @@ function injectReopenButton() {
 }
 
 function checkEmailState() {
-  const emailHistory = getEmailThread();
-  const empty = document.getElementById("vibe-empty");
-  const main = document.getElementById("vibe-main");
-  if (emailHistory.length === 0) {
-    empty.style.display = "block";
-    main.style.display = "none";
-  } else {
-    empty.style.display = "none";
-    main.style.display = "block";
-  }
+  setTimeout(() => {
+    const emailHistory = getEmailThread()
+    const empty = document.getElementById('vibe-empty')
+    const main = document.getElementById('vibe-main')
+    if (!empty || !main) return
+    
+    if (emailHistory.length === 0) {
+      empty.style.display = 'block'
+      main.style.display = 'none'
+    } else {
+      empty.style.display = 'none'
+      main.style.display = 'block'
+    }
+  }, 1500) 
 }
-
 function setLoading(isLoading) {
   document.getElementById("vibe-loading").style.display = isLoading
     ? "block"
