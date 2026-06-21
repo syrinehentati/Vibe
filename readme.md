@@ -147,4 +147,17 @@ So I built something that reads the room for me.
 
 ---
 
+## Roadmap
+
+**V3 — Semantic context search (coming soon)**
+
+The next version won't just search by sender or subject.
+It will read the meaning of your entire mailbox.
+
+If you're replying to an email about a login bug, Vibe will find every email you've ever sent or received about authentication issues — even if none of them mention "login" in the subject. Same concept, different words, different people, different threads.
+
+Built on the same RAG pipeline as [IncidentIQ](https://github.com/syrinehentati/AI-powered-support-ticket-analyzer) — vector embeddings and cosine similarity search across your full email history.
+
+The result: replies informed by everything you know about a topic, not just what's in front of you.
+
 *Built by [Syrine Hentati](https://github.com/syrinehentati)*
