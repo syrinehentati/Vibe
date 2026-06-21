@@ -7,7 +7,7 @@ function getEmailThread() {
   //Gmail rendetrs each email in the thread as a div with this attribute
   const emailBlocks = document.querySelectorAll("[data-message-id]");
   emailBlocks.forEach((block) => {
-    const body = block.querySelector(".as3"); //Gmail's email body class
+    const body = block.querySelector(".a3s"); //Gmail's email body class
     if (body) {
       emails.push(body.innerText.trim());
     }
@@ -54,7 +54,7 @@ function injectSidebar() {
 
   //Generate button
   document.getElementById("vibe-generate").onclick = async () => {
-    const context = document.getElementById("vibe-context").Value;
+    const context = document.getElementById("vibe-context").value;
     if (!context) return;
     const emailHistory = getEmailThread();
     if (emailHistory.length === 0) {
@@ -146,3 +146,7 @@ new MutationObserver(() => {
     }
   }
 }).observe(document.body, { subtree: true, childList: true });
+
+if (isEmailOpen()) {
+  setTimeout(injectSidebar, 1000);
+}
