@@ -89,13 +89,31 @@ function injectSidebar() {
   };
 
   // Insert into Gmail compose box
-  document.getElementById("vibe-insert").onclick = () => {
-    const text = document.getElementById("vibe-email-text").innerText;
-    const composeBox = document.querySelector('[contenteditable="true"]');
-    if (composeBox) {
-      composeBox.innerText = text;
-    }
-  };
+ document.getElementById("vibe-insert").onclick = () => {
+  const text = document.getElementById("vibe-email-text").innerText;
+  
+  // Find Gmail's reply box
+  const composeBox = document.querySelector('[contenteditable="true"][aria-label]')
+    || document.querySelector('[contenteditable="true"]');
+  
+  if (!composeBox) {
+    // Open reply box first if not open
+    const replyButton = document.querySelector('[data-tooltip="Reply"]')
+      || document.querySelector('[aria-label="Reply"]');
+    if (replyButton) replyButton.click();
+    
+    setTimeout(() => {
+      const box = document.querySelector('[contenteditable="true"][aria-label]');
+      if (box) {
+        box.focus();
+        document.execCommand('insertText', false, text);
+      }
+    }, 500);
+  } else {
+    composeBox.focus();
+    document.execCommand('insertText', false, text);
+  }
+};
 }
 
 function setLoading(isLoading) {
