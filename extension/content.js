@@ -149,18 +149,11 @@ function injectSidebar() {
     const tone = document.getElementById("vibe-tone-select").value;
     if (!context) return;
 
-    // Get only checked emails
-    const allEmails = getEmailThread();
-    const checkboxes = document.querySelectorAll(".vibe-email-checkbox");
-    const selectedEmails = [];
-    checkboxes.forEach((cb, i) => {
-      if (cb.checked && allEmails[i]) {
-        selectedEmails.push(allEmails[i]);
-      }
-    });
+    const emailHistory = getEmailThread();
+    const senderEmail = getSenderEmail(); // ← get sender
 
-    if (selectedEmails.length === 0) {
-      showError("Please select at least one email.");
+    if (emailHistory.length === 0) {
+      showError("No emails found in this thread.");
       return;
     }
 
@@ -170,10 +163,10 @@ function injectSidebar() {
       {
         type: "GENERATE_EMAIL",
         payload: {
-          email_history: selectedEmails,
+          email_history: emailHistory,
           context,
           tone,
-          total_selected: selectedEmails.length,
+          sender_email: senderEmail, // ← pass sender to background
         },
       },
       (response) => {
@@ -181,12 +174,11 @@ function injectSidebar() {
         if (!response || response.error) {
           showError(response?.error || "Something went wrong.");
         } else {
-          showResult(response.data, selectedEmails.length);
+          showResult(response.data, emailHistory.length);
         }
       },
     );
   };
-
   // Copy button
   document.getElementById("vibe-copy").onclick = () => {
     const text = document.getElementById("vibe-email-text").innerText;
@@ -241,6 +233,7 @@ function injectReopenButton() {
   };
   document.body.appendChild(btn);
 }
+
 function checkEmailState() {
   let attempts = 0;
   const interval = setInterval(() => {
@@ -262,6 +255,12 @@ function checkEmailState() {
       clearInterval(interval);
     }
   }, 800); // ← increased to 800ms
+}
+
+function getSenderEmail() {
+  // Gmail shows sender email in .gD span with email attribute
+  const sender = document.querySelector(".gD");
+  return sender ? sender.getAttribute("email") : null;
 }
 
 function setLoading(isLoading) {

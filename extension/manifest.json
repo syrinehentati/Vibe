@@ -4,15 +4,18 @@
   "version": "1.0.0",
   "description": "Generate emails that match your contact's exact tone.",
 
-  "permissions": [
-    "activeTab",
-    "scripting"
-  ],
+  "permissions": ["activeTab", "scripting", "identity"],
 
   "host_permissions": [
     "https://mail.google.com/*",
-    "https://vibe-production-1126.up.railway.app/*"
+    "https://vibe-production-1126.up.railway.app/*",
+    "https://www.googleapis.com/*"
   ],
+
+  "oauth2": {
+    "client_id": "654019629089-65qo90ilj04aeh2mhhn9r06veil8qkmd.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/gmail.readonly"]
+  },
 
   "background": {
     "service_worker": "background.js"
