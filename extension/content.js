@@ -1,6 +1,8 @@
-//content.js runs inside Gmail's page
-// Its job: read the email thread, inject the Vibe sidebar
 // content.js runs inside Gmail's page
+// Its job: read the email thread, inject the Vibe sidebar
+
+// Full bodies of ranked emails, keyed by Gmail message id (from background)
+let rankedFullBodies = {};
 
 function getEmailThread() {
   const emails = [];
@@ -46,10 +48,10 @@ function renderEmailList(emails) {
       (email, i) => `
     <div class="vibe-email-item">
       <label class="vibe-email-label">
-        <input 
-          type="checkbox" 
-          class="vibe-email-checkbox" 
-          data-index="${i}" 
+        <input
+          type="checkbox"
+          class="vibe-email-checkbox"
+          data-index="${i}"
           checked
         />
         <span class="vibe-email-preview">
@@ -62,6 +64,33 @@ function renderEmailList(emails) {
     .join("");
 }
 
+function renderRankedList(results) {
+  const el = document.getElementById("vibe-ranked-list");
+  if (!el) return;
+
+  if (results.length === 0) {
+    el.innerHTML = `<p style="color:#888;font-size:12px;margin-top:8px">No related past emails found.</p>`;
+    return;
+  }
+
+  el.innerHTML =
+    `<label class="vibe-label" style="margin-top:12px;display:block">Related past emails — pick which to use</label>` +
+    results
+      .map(
+        (r) => `
+      <div class="vibe-email-item">
+        <label class="vibe-email-label">
+          <input type="checkbox" class="vibe-ranked-checkbox" data-id="${r.id}" ${r.score > 0.6 ? "checked" : ""}/>
+          <span class="vibe-email-preview">
+            <b>${(r.subject || "(no subject)").slice(0, 40)}</b> · ${Math.round(r.score * 100)}%<br/>
+            ${r.snippet.slice(0, 80)}...
+          </span>
+        </label>
+      </div>`,
+      )
+      .join("");
+}
+
 function injectSidebar() {
   if (document.getElementById("vibe-sidebar")) {
     document.getElementById("vibe-sidebar").style.display = "block";
@@ -69,13 +98,14 @@ function injectSidebar() {
     document.getElementById("vibe-result").style.display = "none";
     document.getElementById("vibe-error").style.display = "none";
     document.getElementById("vibe-email-list").innerHTML = "";
+    document.getElementById("vibe-ranked-list").innerHTML = "";
     document.getElementById("vibe-context").value = "";
+    rankedFullBodies = {};
     checkEmailState(); // ← recheck for new email
     return;
   }
   const sidebar = document.createElement("div");
   sidebar.id = "vibe-sidebar";
-  // Replace the sidebar.innerHTML inside injectSidebar() with this:
 
   sidebar.innerHTML = `
   <div id="vibe-header">
@@ -108,8 +138,16 @@ function injectSidebar() {
       <div class="vibe-spacer"></div>
 
       <label class="vibe-label">What do you want to say?</label>
-      <textarea id="vibe-context" rows="3" 
+      <textarea id="vibe-context" rows="3"
         placeholder="e.g. Follow up on the proposal..."></textarea>
+
+      <button id="vibe-find-context" style="
+        width:100%;margin-top:8px;padding:9px;background:transparent;
+        border:1px solid #7c6fff;border-radius:7px;color:#7c6fff;
+        font-size:13px;cursor:pointer;font-family:inherit;">
+        Find relevant context
+      </button>
+      <div id="vibe-ranked-list"></div>
 
       <button id="vibe-generate">Generate Reply</button>
 
@@ -143,6 +181,42 @@ function injectSidebar() {
     document.getElementById("vibe-reopen").style.display = "flex";
   };
 
+  // Find relevant context button (Slice 1 + 2)
+  document.getElementById("vibe-find-context").onclick = () => {
+    const context = document.getElementById("vibe-context").value;
+    if (!context) {
+      showError("Write what you want to say first.");
+      return;
+    }
+    const currentEmail = getEmailThread().join("\n---\n");
+    const senderEmail = getSenderEmail();
+
+    const btn = document.getElementById("vibe-find-context");
+    btn.textContent = "Searching...";
+    btn.disabled = true;
+
+    chrome.runtime.sendMessage(
+      {
+        type: "RANK_CONTEXT",
+        payload: {
+          context,
+          current_email: currentEmail,
+          sender_email: senderEmail,
+        },
+      },
+      (response) => {
+        btn.textContent = "Find relevant context";
+        btn.disabled = false;
+        if (!response || response.error) {
+          showError(response?.error || "Search failed.");
+          return;
+        }
+        rankedFullBodies = response.full || {};
+        renderRankedList(response.data.results || []);
+      },
+    );
+  };
+
   // Generate button
   document.getElementById("vibe-generate").onclick = async () => {
     const context = document.getElementById("vibe-context").value;
@@ -150,12 +224,19 @@ function injectSidebar() {
     if (!context) return;
 
     const emailHistory = getEmailThread();
-    const senderEmail = getSenderEmail(); // ← get sender
+    const senderEmail = getSenderEmail();
 
     if (emailHistory.length === 0) {
       showError("No emails found in this thread.");
       return;
     }
+
+    // Collect user-approved context threads (human-in-the-loop)
+    const selectedContext = [
+      ...document.querySelectorAll(".vibe-ranked-checkbox:checked"),
+    ]
+      .map((cb) => rankedFullBodies[cb.dataset.id])
+      .filter(Boolean);
 
     setLoading(true);
 
@@ -167,6 +248,7 @@ function injectSidebar() {
           context,
           tone,
           sender_email: senderEmail,
+          selected_context: selectedContext,
         },
       },
       (response) => {
@@ -174,11 +256,12 @@ function injectSidebar() {
         if (!response || response.error) {
           showError(response?.error || "Something went wrong.");
         } else {
-          showResult(response.data, response.emailCount); // ← use the real count, not the local one
+          showResult(response.data, response.emailCount);
         }
       },
     );
   };
+
   // Copy button
   document.getElementById("vibe-copy").onclick = () => {
     const text = document.getElementById("vibe-email-text").innerText;
@@ -254,7 +337,7 @@ function checkEmailState() {
     } else if (attempts > 20) {
       clearInterval(interval);
     }
-  }, 800); // ← increased to 800ms
+  }, 800);
 }
 
 function getSenderEmail() {
