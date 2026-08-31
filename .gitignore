@@ -1,8 +1,12 @@
 # Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Node
 node_modules/
