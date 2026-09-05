@@ -1,5 +1,7 @@
 # Vibe — AI Email Agent
 
+[![tests](https://github.com/syrinehentati/Vibe/actions/workflows/tests.yml/badge.svg)](https://github.com/syrinehentati/Vibe/actions/workflows/tests.yml)
+
 Most AI email tools write emails that sound like AI wrote them.
 Vibe doesn't. It reads how your contact actually writes — their rhythm, their tone, their quirks — and writes back in their exact style.
 
