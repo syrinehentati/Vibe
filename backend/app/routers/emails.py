@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 from app.schemas.email_schema import (
     EmailRequest,
@@ -10,6 +12,8 @@ from app.services.email_service import EmailService
 from app.services.embedding_service import EmbeddingService
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(
     prefix="/emails",
     tags=["emails"],
@@ -18,13 +22,13 @@ router = APIRouter(
 email_service = EmailService()
 embedding_service = EmbeddingService()
 
-
 @router.post("/generate", response_model=EmailResponse)
 def generate_email(request: EmailRequest):
     try:
         return email_service.generate(request)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.exception("Email generation failed")
+        raise HTTPException(status_code=502, detail="Email generation failed")
 
 
 @router.post("/rank-context", response_model=RankContextResponse)
@@ -42,14 +46,14 @@ def rank_context(request: RankContextRequest):
             )
             for i, score in ranked
         ])
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    except Exception:
+        logger.exception("Context ranking failed")
+        raise HTTPException(status_code=502, detail="Context ranking failed")
 
 @router.get("/health")
 def health():
     return {
         "status": "ok",
-        "model": "gemini-3.5-flash",
+        "model": settings.gemini_model,
         "environment": settings.environment,
     }

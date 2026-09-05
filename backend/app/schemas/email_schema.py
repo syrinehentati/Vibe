@@ -1,12 +1,29 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Literal
 
 
 class EmailConfig(BaseModel):
-    tone: str = Field(default="warm", description="warm, direct, formal, casual")
+    tone: Literal["warm", "direct", "formal", "casual"] = Field(
+        default="warm", description="Tone to write in"
+    )
     technical: bool = Field(default=False, description="Use technical language or not")
-    extra_instructions: Optional[str] = Field(default=None, description="Any extra instructions for the AI")
+    extra_instructions: Optional[str] = Field(
+        default=None, description="Any extra instructions for the AI"
+    )
 
+
+class EmailRequest(BaseModel):
+    email_history: list[str] = Field(
+        ..., min_length=1, description="Previous emails with this contact"
+    )
+    context: str = Field(
+        ..., min_length=1, description="What the email should be about"
+    )
+    config: EmailConfig = Field(default_factory=EmailConfig)
+    selected_context: Optional[list[str]] = Field(
+        default=None,
+        description="Past email threads the user selected as relevant context",
+    )
 
 class EmailRequest(BaseModel):
     email_history: list[str] = Field(..., description="Previous emails with this contact")
