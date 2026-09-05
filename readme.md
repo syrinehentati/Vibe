@@ -141,6 +141,19 @@ Claude will automatically discover the `generate_email` tool.
 
 ---
 
+## Testing
+
+31 tests, 100% coverage on the `app` package. No API keys needed — the Gemini client is mocked, so the suite runs offline in ~10 seconds.
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+pytest --cov=app
+```
+
+Covers Pydantic schema validation, API routes and error handling, prompt assembly, and the cosine similarity used for semantic ranking.
+---
+
 ## Why I built this
 
 I kept getting emails that needed replies that matched the other person's energy — formal clients, casual teammates, anxious users. Writing those manually takes more thought than it should.
