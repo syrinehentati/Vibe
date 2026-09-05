@@ -43,3 +43,36 @@ def test_upstream_failure_does_not_leak_details(client, gemini, sample_request):
     r = client.post("/emails/generate", json=sample_request)
     assert r.status_code >= 500
     assert "AIzaSy" not in r.text
+
+
+def test_rank_context_returns_scored_results(client, monkeypatch):
+    from app.routers import emails
+    monkeypatch.setattr(
+        emails.embedding_service, "rank",
+        lambda q, t, k: [(1, 0.91), (0, 0.42)]
+    )
+    r = client.post("/emails/rank-context", json={
+        "current_email": "the login is broken",
+        "context": "auth bug",
+        "candidates": [
+            {"id": "m1", "snippet": "old thread"},
+            {"id": "m2", "snippet": "auth failure"},
+        ],
+    })
+    assert r.status_code == 200
+    results = r.json()["results"]
+    assert [x["id"] for x in results] == ["m2", "m1"]
+    assert results[0]["score"] == 0.91
+
+
+def test_rank_context_failure_is_502(client, monkeypatch):
+    from app.routers import emails
+    def boom(*a, **k):
+        raise Exception("embedding API down")
+    monkeypatch.setattr(emails.embedding_service, "rank", boom)
+    r = client.post("/emails/rank-context", json={
+        "current_email": "x", "context": "y",
+        "candidates": [{"id": "m1", "snippet": "s"}],
+    })
+    assert r.status_code == 502
+    assert "embedding API down" not in r.text   
